@@ -1,0 +1,7 @@
+presidio-analyzer
+presidio-anonymizer
+natasha
+razdel
+pymorphy2
+python-docx
+pdfminer.six
