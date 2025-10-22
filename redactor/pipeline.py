@@ -99,7 +99,8 @@ class Pipeline:
             ):
                 # keep current letter
                 norm_chars.append(ch)
-                map_idx.append(i)
+                # map_idx.append(i)
+                map_idx.extend([i, i+1, i+2])
                 # skip '-' and '\n'
                 i += 1  # now at '-'
                 i += 1  # now at '\n'
