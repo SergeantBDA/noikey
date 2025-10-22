@@ -9,7 +9,13 @@ from typing import List, Optional, Any, TYPE_CHECKING
 import re
 
 try:
-    from presidio_analyzer import AnalyzerEngine as _AnalyzerEngine, Pattern as _Pattern, PatternRecognizer as _PatternRecognizer, RecognizerResult as _RecognizerResult  # type: ignore[import-not-found]
+    from presidio_analyzer import AnalyzerEngine as _AnalyzerEngine, \
+                                  Pattern as _Pattern, \
+                                  PatternRecognizer as _PatternRecognizer, \
+                                  RecognizerResult as _RecognizerResult, \
+                                  RecognizerRegistry as _RecognizerRegistry
+                                  # type: ignore[import-not-found]
+
     from presidio_analyzer.nlp_engine import NlpEngineProvider as _NlpEngineProvider  # type: ignore[import-not-found]
     AnalyzerEngineType: Any = _AnalyzerEngine
     PatternType: Any = _Pattern
@@ -137,7 +143,8 @@ def build_analyzer() -> Optional[Any]:
         return None
     try:
         # Create analyzer without external NLP to keep startup fast; we rely on pattern recognizers
-        analyzer = AnalyzerEngineType()
+        registry = _RecognizerRegistry(supported_languages=["ru"])
+        analyzer = AnalyzerEngineType(registry=registry, supported_languages=["ru"])        
         for rec in build_custom_recognizers():
             analyzer.registry.add_recognizer(rec)
         return analyzer

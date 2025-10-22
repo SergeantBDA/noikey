@@ -41,6 +41,7 @@ $env:REDACTOR_NATASHA_FULL = "1"
 ```powershell
 python cli.py --input .\contracts --recursive --mask-style tag
 python cli.py --input .\contract.txt --mask-style hash --keep-length
+python cli.py --input .\contracts --recursive --patterns .\config\patterns.yaml
 ```
 
 Options:
@@ -55,6 +56,34 @@ Options:
 - --dry-run: do not write files
 - --disable-office: skip PDF/DOCX readers
 - --log-level: INFO|DEBUG
+- --patterns PATH: load regexes/keywords from YAML/JSON config (hot-reloaded at startup)
+
+### Patterns configuration
+
+By default, patterns are loaded in this order:
+1. `--patterns PATH` (CLI override)
+2. `REDactor_PATTERNS` / `REDACTOR_PATTERNS` environment variable
+3. `./config/patterns.yaml`
+4. `./config/patterns.json`
+5. Built-in defaults
+
+Config schema (YAML/JSON):
+
+```yaml
+version: 1
+regex:
+  org_pattern: '(?:ООО|АО|ПАО|ЗАО|ОАО|ГУП|МУП|ИП|ФГБУ|АНО|НКО|ТСЖ)\s+[«"']?[А-ЯЁA-Z0-9][^"»\n]{1,100}[»"']?'
+  role_named_pattern: 'именуем\w*\s+в\s+дальнейшем\s+[«"']?\s*([А-ЯЁA-Z][^»"\n]{1,40})[»"']?'
+  in_face_pattern: 'в\s+лице\s+[^,\n]+?,\s*действующ\w*\s+на\s+основан\w+'
+  subject_header_pattern: '(?im)^\s*(ПРЕДМЕТ\s+ДОГОВОРА|Предмет\s+договора)\s*$'
+flags:
+  org_pattern: ['U']
+  role_named_pattern: ['I','U']
+  in_face_pattern: ['I','U']
+  subject_header_pattern: ['I','M','U']
+keywords:
+  subject_keywords: ['обязуется','предметом является','оказать','выполнить','поставить']
+```
 
 ## Output
 

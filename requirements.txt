@@ -5,3 +5,5 @@ razdel
 pymorphy2
 python-docx
 pdfminer.six
+pydantic>=1.10
+PyYAML

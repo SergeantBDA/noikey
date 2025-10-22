@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Iterable, List, Optional, Tuple
 
 from redactor.pipeline import Pipeline, PipelineOptions, MaskStyle
+from redactor.patterns import reload_patterns
 from redactor.io_utils import discover_files, read_any, mirror_output_path, write_text, append_jsonl
 
 
@@ -25,6 +26,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--dry-run", action="store_true", help="Do not write files, only report")
     p.add_argument("--log-level", default="INFO", choices=["INFO", "DEBUG"], help="Log level")
     p.add_argument("--disable-office", action="store_true", help="Disable reading .pdf/.docx (txt only)")
+    p.add_argument("--patterns", default=None, help="Path to patterns YAML/JSON file (overrides defaults)")
     return p.parse_args()
 
 
@@ -61,6 +63,10 @@ def process_one(pipeline_opts: PipelineOptions, input_root: Path, output_root: P
 def main() -> None:
     args = parse_args()
     setup_logging(args.log_level)
+
+    # Load/override patterns early (hot-reload)
+    if args.patterns:
+        reload_patterns(args.patterns)
 
     opts = PipelineOptions(
         mask_style=MaskStyle(args.mask_style),
