@@ -226,6 +226,7 @@ def _resolve_config_path(explicit: Optional[str]) -> Tuple[Optional[str], str]:
 def _compile(cfg: PatternsConfig) -> PatternBundle:
     try:
         org = re.compile(cfg.regex.org_pattern, _flags_to_re(cfg.flags.org_pattern))
+        print(cfg.regex.org_pattern)
         role = re.compile(cfg.regex.role_named_pattern, _flags_to_re(cfg.flags.role_named_pattern))
         inf = re.compile(cfg.regex.in_face_pattern, _flags_to_re(cfg.flags.in_face_pattern))
         subj = re.compile(cfg.regex.subject_header_pattern, _flags_to_re(cfg.flags.subject_header_pattern))
