@@ -2,4 +2,4 @@ __pycache__/
 *.pyc
 .venv/
 redacted/
-tests/
+tests/documents/
