@@ -1,8 +1,0 @@
-version: 1
-regex:
-  org_pattern: '([unterminated'
-  role_named_pattern: 'x'
-  in_face_pattern: 'x'
-  subject_header_pattern: 'x'
-flags: {}
-keywords: {}

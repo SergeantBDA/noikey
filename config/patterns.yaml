@@ -1,19 +1,44 @@
 version: 1
 regex:
   org_pattern: >- 
-    (?:ООО|АО|ПАО|ЗАО|ОАО|ГУП|МУП|ИП|ФГБУ|АНО|НКО|ТСЖ|
+    (?<!\w)(?:ООО|АО|ПАО|ЗАО|ОАО|ГУП|МУП|ИП|ФГБУ|АНО|НКО|ТСЖ|
     Общество\W{0,5}с\W{0,5}ограниченной\W{0,5}ответственностью|
     Акционерное\W{0,5}общество|
     Публичное\W{0,5}акционерное\W{0,5}общество|
-    Закрытое\W{0,5}акционерное\W{0,5}общество)\W{0,5}[«"“„']?\s*[А-ЯЁA-Z0-9][^"»”\n]{1,200}[»"”']?
-  role_named_pattern: "именуем\\w*\\s+в\\s+дальнейшем\\s+[«\\\"']?\\s*([А-ЯЁA-Z][^»\\\"\\n]{1,40})[»\\\"']?"
-  in_face_pattern: "в\\s+лице\\s+[^,\\n]+?,\\s*действующ\\w*\\s+на\\s+основан\\w+"
+    Закрытое\W{0,5}акционерное\W{0,5}общество)(?!\w)\W{0,5}[«"“„']?\s*[А-ЯЁA-Z0-9][^"»”\n]{1,200}[»"”']?
+  role_named_pattern: >-
+    \bдействующ(?:их|его|ей)\b
+    (?:\s+совместно)?
+    \s+на\s+основании
+    \s+доверенност(?:и|ь)\b
+    (?:
+      \s*(?:№|N(?:o)?\.?)?\s*(?P<num>[A-Za-zА-Яа-я0-9\-/.]+))?(?:\s*от\s*(?P<date>\d{1,2}[./]\d{1,2}[./]\d{2,4})
+    )?
+  in_face_pattern: "в\\s+лице\\s+[^,\\n]+?"
   subject_header_pattern: "(?im)^\\s*(ПРЕДМЕТ\\s+ДОГОВОРА|Предмет\\s+договора)\\s*$"
+  email_pattern: >-
+    [A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}
+  url_pattern: >-
+    (?:(?:https?|ftp)://)?(?:www\.)?[A-Za-z0-9.-]+\.[A-Za-z]{2,}(?:/[A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]*)?
+  inn_pattern:  '\b\d{10}\b|\b\d{12}\b'
+  ogrn_pattern: '\b\d{13}\b'
+  kpp_pattern:  '\b\d{4}\d{2}\d{3}\b'
+  bik_pattern:  '\b\d{9}\b'
+  rs_pattern:   '\b\d{20}\b'
+  ks_pattern:   '\b\d{20}\b'
 flags:
   org_pattern: ["I","U","X"]
-  role_named_pattern: ["I","U"]
+  role_named_pattern: ["I","U","X"]
   in_face_pattern: ["I","U"]
   subject_header_pattern: ["I","M","U"]
+  email_pattern: ["I","U"]
+  url_pattern: ["I","U"]  
+  inn_pattern:  ["U"]
+  ogrn_pattern: ["U"]
+  kpp_pattern:  ["U"]
+  bik_pattern:  ["U"]
+  rs_pattern:   ["U"]
+  ks_pattern:   ["U"]  
 keywords:
   subject_keywords:
     - "обязуется"

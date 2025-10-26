@@ -246,12 +246,14 @@ class Pipeline:
             out.append(mask)
             before_hash = hashlib.sha256(fragment.encode("utf-8", errors="ignore")).hexdigest()
             logs.append({
-                "start": s.start,
-                "end": s.end,
-                "label": s.labels_joined or s.label,
-                "source": s.source,
+                "start"      : s.start,
+                "end"        : s.end,
+                "label"      : s.labels_joined or s.label,
+                "score"      : s.score,
+                "source"     : s.source,
+                "substr"     : fragment,
                 "before_hash": before_hash,
-                "after": mask,
+                "after"      : mask,
             })
             i = s.end
         out.append(text[i:])
@@ -263,6 +265,8 @@ class Pipeline:
         spans = self.detect_spans(norm_text)
         spans = self.merge_overlaps(spans)
         spans = self.map_spans_to_original(spans, norm_map)
+        # ⬇️ Фильтруем по score ПЕРЕД финальным merge и маскированием
+        spans = [s for s in spans if s.score >= self.opts.min_score]        
         spans = self.merge_overlaps(spans)  # re-merge after mapping to be safe
         redacted, logs = self.apply_masks(text, spans)
         return redacted, logs

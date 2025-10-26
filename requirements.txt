@@ -3,7 +3,11 @@ presidio-anonymizer
 natasha
 razdel
 pymorphy2
+pymorphy2-dicts-ru 
 python-docx
 pdfminer.six
 pydantic>=1.10
 PyYAML
+razdel 
+stop-words 
+nltk

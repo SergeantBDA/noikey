@@ -12,8 +12,8 @@ print(f"REDACTOR_NATASHA_FULL={_flag}")
 with open('D:/CODE/PY/NOIKEY/tests/documents/contract.txt', 'r', encoding='utf-8') as f:
     content = f.read()
 
-text   = content[:3303]
-print("Text snippet:", text)
+text   = content
+#print("Text snippet:", text)
 
 _spans = ner.analyze(text)
 print("Spans (light mode):")

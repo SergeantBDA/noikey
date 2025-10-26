@@ -74,7 +74,7 @@ def main() -> None:
         min_score=float(args.min_score),
         include_subject=("SUBJECT" in (args.include or [])),
     )
-
+    
     input_root = Path(args.input).resolve()
     output_root = Path(args.output).resolve()
 

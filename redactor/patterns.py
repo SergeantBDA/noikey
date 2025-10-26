@@ -36,53 +36,47 @@ except Exception:  # pragma: no cover
 from pydantic import BaseModel, Field, validator
 
 # --- Entity label constants ---
-LABEL_ORG = "ORG"
-LABEL_ROLE = "ROLE"
+LABEL_ORG     = "ORG"
+LABEL_ROLE    = "ROLE"
 LABEL_SUBJECT = "SUBJECT"
+LABEL_EMAIL   = "EMAIL"
+LABEL_URL     = "URL"
+LABEL_INN     = "INN"
+LABEL_OGRN    = "OGRN"
+LABEL_KPP     = "KPP"
+LABEL_BIK     = "BIK"
+LABEL_RS      = "RS"
+LABEL_KS      = "KS"
 
 log = logging.getLogger(__name__)
-
-
-# Default config (fallback)
-DEFAULT_CONFIG = {
-    "version": 1,
-    "regex": {
-        "org_pattern": r"(?:ООО|АО|ПАО|ЗАО|ОАО|ГУП|МУП|ИП|ФГБУ|АНО|НКО|ТСЖ)\s+[«\"']?[А-ЯЁA-Z0-9][^\"»\n]{1,100}[»\"']?",
-        "role_named_pattern": r"именуем\w*\s+в\s+дальнейшем\s+[«\"']?\s*([А-ЯЁA-Z][^»\"\n]{1,40})[»\"']?",
-        "in_face_pattern": r"в\s+лице\s+[^,\n]+?,\s*действующ\w*\s+на\s+основан\w+",
-        "subject_header_pattern": r"(?im)^\s*(ПРЕДМЕТ\s+ДОГОВОРА|Предмет\s+договора)\s*$",
-    },
-    "flags": {
-        "org_pattern": ["U"],
-        "role_named_pattern": ["I", "U"],
-        "in_face_pattern": ["I", "U"],
-        "subject_header_pattern": ["I", "M", "U"],
-    },
-    "keywords": {
-        "subject_keywords": [
-            "обязуется",
-            "предметом является",
-            "оказать",
-            "выполнить",
-            "поставить",
-        ]
-    },
-}
-
 
 class FlagsModel(BaseModel):
     org_pattern: List[str] = []
     role_named_pattern: List[str] = []
     in_face_pattern: List[str] = []
     subject_header_pattern: List[str] = []
-
+    email_pattern: List[str] = []
+    url_pattern: List[str] = []
+    inn_pattern: List[str] = []
+    ogrn_pattern: List[str] = []
+    kpp_pattern: List[str] = []
+    bik_pattern: List[str] = []
+    rs_pattern: List[str] = []
+    ks_pattern: List[str] = []
 
 class RegexModel(BaseModel):
-    org_pattern: str
-    role_named_pattern: str
-    in_face_pattern: str
-    subject_header_pattern: str
-
+    org_pattern:  Optional[str] = None
+    role_named_pattern: Optional[str] = None
+    in_face_pattern: Optional[str] = None
+    subject_header_pattern: Optional[str] = None
+    email_pattern: Optional[str] = None
+    url_pattern: Optional[str] = None
+    inn_pattern: Optional[str] = None
+    ogrn_pattern: Optional[str] = None
+    kpp_pattern: Optional[str] = None
+    bik_pattern: Optional[str] = None
+    rs_pattern: Optional[str] = None
+    ks_pattern: Optional[str] = None
 
 class PatternsConfig(BaseModel):
     version: int = 1
@@ -103,12 +97,19 @@ class PatternsConfig(BaseModel):
 # --- Pattern bundle ---
 @dataclass(frozen=True)
 class PatternBundle:
-    org_pattern: re.Pattern
-    role_named_pattern: re.Pattern
-    in_face_pattern: re.Pattern
-    subject_header_pattern: re.Pattern
-    subject_keywords: Tuple[str, ...]
-
+    org_pattern:            Optional[re.Pattern] = None
+    role_named_pattern:     Optional[re.Pattern] = None
+    in_face_pattern:        Optional[re.Pattern] = None
+    subject_header_pattern: Optional[re.Pattern] = None
+    subject_keywords:       Tuple[str, ...]      = ()
+    email_pattern:          Optional[re.Pattern] = None
+    url_pattern:            Optional[re.Pattern] = None
+    inn_pattern:            Optional[re.Pattern] = None
+    ogrn_pattern:           Optional[re.Pattern] = None
+    kpp_pattern:            Optional[re.Pattern] = None
+    bik_pattern:            Optional[re.Pattern] = None
+    rs_pattern:             Optional[re.Pattern] = None
+    ks_pattern:             Optional[re.Pattern] = None
 
 _CACHE: Optional[PatternBundle] = None
 _CACHE_PATH: Optional[str] = None
@@ -225,11 +226,18 @@ def _resolve_config_path(explicit: Optional[str]) -> Tuple[Optional[str], str]:
 
 def _compile(cfg: PatternsConfig) -> PatternBundle:
     try:
-        org = re.compile(cfg.regex.org_pattern, _flags_to_re(cfg.flags.org_pattern))
-        print(cfg.regex.org_pattern)
-        role = re.compile(cfg.regex.role_named_pattern, _flags_to_re(cfg.flags.role_named_pattern))
-        inf = re.compile(cfg.regex.in_face_pattern, _flags_to_re(cfg.flags.in_face_pattern))
-        subj = re.compile(cfg.regex.subject_header_pattern, _flags_to_re(cfg.flags.subject_header_pattern))
+        org   = re.compile(cfg.regex.org_pattern,            _flags_to_re(cfg.flags.org_pattern))
+        role  = re.compile(cfg.regex.role_named_pattern,     _flags_to_re(cfg.flags.role_named_pattern))
+        inf   = re.compile(cfg.regex.in_face_pattern,        _flags_to_re(cfg.flags.in_face_pattern))
+        subj  = re.compile(cfg.regex.subject_header_pattern, _flags_to_re(cfg.flags.subject_header_pattern))
+        email = re.compile(cfg.regex.email_pattern,          _flags_to_re(cfg.flags.email_pattern))
+        url   = re.compile(cfg.regex.url_pattern,            _flags_to_re(cfg.flags.url_pattern))
+        inn   = re.compile(cfg.regex.inn_pattern,            _flags_to_re(cfg.flags.inn_pattern))
+        ogrn  = re.compile(cfg.regex.ogrn_pattern,           _flags_to_re(cfg.flags.ogrn_pattern))
+        kpp   = re.compile(cfg.regex.kpp_pattern,            _flags_to_re(cfg.flags.kpp_pattern))
+        bik   = re.compile(cfg.regex.bik_pattern,            _flags_to_re(cfg.flags.bik_pattern))
+        rs    = re.compile(cfg.regex.rs_pattern,             _flags_to_re(cfg.flags.rs_pattern))
+        ks    = re.compile(cfg.regex.ks_pattern,             _flags_to_re(cfg.flags.ks_pattern))        
     except re.error as e:
         # Identify which pattern failed by naive check
         # Re-compile each to isolate
@@ -238,6 +246,14 @@ def _compile(cfg: PatternsConfig) -> PatternBundle:
             ("role_named_pattern", cfg.regex.role_named_pattern, cfg.flags.role_named_pattern),
             ("in_face_pattern", cfg.regex.in_face_pattern, cfg.flags.in_face_pattern),
             ("subject_header_pattern", cfg.regex.subject_header_pattern, cfg.flags.subject_header_pattern),
+            ("email_pattern", cfg.regex.email_pattern, cfg.flags.email_pattern),
+            ("url_pattern", cfg.regex.url_pattern, cfg.flags.url_pattern),
+            ("inn_pattern", cfg.regex.inn_pattern, cfg.flags.inn_pattern),
+            ("ogrn_pattern", cfg.regex.ogrn_pattern, cfg.flags.ogrn_pattern),
+            ("kpp_pattern", cfg.regex.kpp_pattern, cfg.flags.kpp_pattern),
+            ("bik_pattern", cfg.regex.bik_pattern, cfg.flags.bik_pattern),
+            ("rs_pattern", cfg.regex.rs_pattern, cfg.flags.rs_pattern),
+            ("ks_pattern", cfg.regex.ks_pattern, cfg.flags.ks_pattern),
         ]:
             try:
                 re.compile(pat, _flags_to_re(fl))
@@ -247,14 +263,15 @@ def _compile(cfg: PatternsConfig) -> PatternBundle:
         # If not isolated, re-raise original
         raise
     subject_keywords = tuple(cfg.keywords.get("subject_keywords", []))
-    return PatternBundle(org, role, inf, subj, subject_keywords)
+    return PatternBundle(org, role, inf, subj, subject_keywords,
+                         email, url, inn, ogrn, kpp, bik, rs, ks)
 
 
 def load_patterns(config_path: Optional[str] = None) -> PatternBundle:
     path, src = _resolve_config_path(config_path)
     if path is None:
         log.info("Patterns config not found, using defaults (source=%s)", src)
-        data = DEFAULT_CONFIG
+        return None
     else:
         log.info("Loading patterns config from %s (source=%s)", path, src)
         try:
@@ -273,14 +290,14 @@ def load_patterns(config_path: Optional[str] = None) -> PatternBundle:
     bundle = _compile(cfg)
     return bundle
 
-
 def get_patterns() -> PatternBundle:
     global _CACHE
     with _LOCK:
         if _CACHE is None:
             _CACHE = load_patterns(_CACHE_PATH)
+        if _CACHE is None:
+            raise RuntimeError("Patterns bundle is not initialized")
         return _CACHE
-
 
 def reload_patterns(config_path: Optional[str] = None) -> PatternBundle:
     global _CACHE, _CACHE_PATH
@@ -289,33 +306,10 @@ def reload_patterns(config_path: Optional[str] = None) -> PatternBundle:
         _CACHE_PATH = config_path
         log.info("Hot-reload patterns (path=%s)", config_path or "auto")
         bundle = load_patterns(config_path)
+        if bundle is None:
+            raise RuntimeError("Failed to load patterns on reload")
         _CACHE = bundle
-        # Update deprecated globals on reload for better backward-compat
-        _update_deprecated_globals(bundle)
         return bundle
-
-
-# --- Deprecated globals (backward-compat) ---
-
-def _update_deprecated_globals(bundle: "PatternBundle") -> None:
-    globals()["ORG_PATTERN"] = bundle.org_pattern
-    globals()["ROLE_NAMED_PATTERN"] = bundle.role_named_pattern
-    globals()["IN_FACE_PATTERN"] = bundle.in_face_pattern
-    globals()["SUBJECT_HEADER_PATTERN"] = bundle.subject_header_pattern
-    globals()["SUBJECT_KEYWORDS"] = list(bundle.subject_keywords)
-
-
-# Initialize deprecated proxies
-_BUNDLE = get_patterns()
-_update_deprecated_globals(_BUNDLE)
-warnings.warn(
-    "Importing ORG_PATTERN/ROLE_NAMED_PATTERN/IN_FACE_PATTERN/SUBJECT_HEADER_PATTERN/SUBJECT_KEYWORDS from redactor.patterns is deprecated. "
-    "They are now loaded from configuration. Prefer get_patterns().",
-    DeprecationWarning,
-    stacklevel=2,
-)
-
-
 # --- Regex-driven detectors using dynamic patterns ---
 
 @dataclass(frozen=True)
@@ -355,12 +349,36 @@ def find_orgs(text: str) -> List[RegexSpan]:
 def find_roles(text: str) -> List[RegexSpan]:
     pats = get_patterns()
     spans: List[RegexSpan] = []
-    for m in pats.role_named_pattern.finditer(text):
-        spans.append(RegexSpan(m.start(), m.end(), LABEL_ROLE, 0.9))
-    for m in pats.in_face_pattern.finditer(text):
-        spans.append(RegexSpan(m.start(), m.end(), LABEL_ROLE, 0.92))
-    return spans
 
+    # 1) Фразы вида "в лице ... действующ... на основании ..."
+    for m in pats.in_face_pattern.finditer(text):
+        # Контекстная метка роли (как было раньше)
+        spans.append(RegexSpan(m.start(), m.end(), LABEL_ROLE, 0.92))
+
+    # 2) Доверенности: маскируем ТОЛЬКО номер и дату
+    for m in pats.role_named_pattern.finditer(text):
+        # при желании можно оставить общий контекст роли, но с низким скором:
+        #spans.append(RegexSpan(m.start(), m.end(), LABEL_ROLE, 0.30, extra_label="POA_CONTEXT"))
+
+        # номер доверенности
+        if "num" in m.groupdict() and m.group("num"):
+            try:
+                s_num = m.start("num")
+                e_num = m.end("num")
+                spans.append(RegexSpan(s_num, e_num, LABEL_ROLE, 0.97, extra_label="POA_NUM"))
+            except IndexError:
+                pass
+
+        # дата доверенности
+        if "date" in m.groupdict() and m.group("date"):
+            try:
+                s_dt = m.start("date")
+                e_dt = m.end("date")
+                spans.append(RegexSpan(s_dt, e_dt, LABEL_ROLE, 0.97, extra_label="POA_DATE"))
+            except IndexError:
+                pass
+
+    return spans
 
 def _next_section_start(text: str, from_pos: int) -> int:
     next_upper = UPPERCASE_SECTION_RE.search(text, pos=from_pos)
@@ -412,11 +430,94 @@ def find_subjects(text: str, max_size: int = 2000) -> List[RegexSpan]:
             spans.append(RegexSpan(start, end, LABEL_SUBJECT, 0.7))
     return spans
 
+def find_emails(text: str) -> List[RegexSpan]:
+    pats = get_patterns()
+    spans: List[RegexSpan] = []
+    if pats.email_pattern:
+        for m in pats.email_pattern.finditer(text):
+            spans.append(RegexSpan(m.start(), m.end(), LABEL_EMAIL, 0.95))
+    return spans
+
+
+def find_urls(text: str) -> List[RegexSpan]:
+    pats = get_patterns()
+    spans: List[RegexSpan] = []
+    if pats.url_pattern:
+        for m in pats.url_pattern.finditer(text):
+            spans.append(RegexSpan(m.start(), m.end(), LABEL_URL, 0.95))
+    return spans
+
+def find_inn(text: str) -> List[RegexSpan]:
+    pats = get_patterns()
+    spans: List[RegexSpan] = []
+    if pats.inn_pattern:
+        for m in pats.inn_pattern.finditer(text):
+            raw = m.group(0)
+            if validate_inn(raw):  # ← строгая проверка контрольной суммы/длины
+                spans.append(RegexSpan(m.start(), m.end(), LABEL_INN, 0.98))
+    return spans
+
+def find_ogrn(text: str) -> List[RegexSpan]:
+    pats = get_patterns()
+    spans: List[RegexSpan] = []
+    if pats.ogrn_pattern:
+        for m in pats.ogrn_pattern.finditer(text):
+            raw = m.group(0)
+            if validate_ogrn(raw):
+                spans.append(RegexSpan(m.start(), m.end(), LABEL_OGRN, 0.98))
+    return spans
+
+def find_kpp(text: str) -> List[RegexSpan]:
+    pats = get_patterns()
+    spans: List[RegexSpan] = []
+    if pats.kpp_pattern:
+        for m in pats.kpp_pattern.finditer(text):
+            raw = m.group(0)
+            if validate_kpp(raw):
+                spans.append(RegexSpan(m.start(), m.end(), LABEL_KPP, 0.95))
+    return spans
+
+def find_bik(text: str) -> List[RegexSpan]:
+    pats = get_patterns()
+    spans: List[RegexSpan] = []
+    if pats.bik_pattern:
+        for m in pats.bik_pattern.finditer(text):
+            raw = m.group(0)
+            if validate_bik(raw):
+                spans.append(RegexSpan(m.start(), m.end(), LABEL_BIK, 0.95))
+    return spans
+
+def find_rs(text: str) -> List[RegexSpan]:
+    pats = get_patterns()
+    spans: List[RegexSpan] = []
+    if pats.rs_pattern:
+        for m in pats.rs_pattern.finditer(text):
+            raw = m.group(0)
+            if validate_rs(raw):
+                spans.append(RegexSpan(m.start(), m.end(), LABEL_RS, 0.96))
+    return spans
+
+def find_ks(text: str) -> List[RegexSpan]:
+    pats = get_patterns()
+    spans: List[RegexSpan] = []
+    if pats.ks_pattern:
+        for m in pats.ks_pattern.finditer(text):
+            raw = m.group(0)
+            if validate_ks(raw):
+                spans.append(RegexSpan(m.start(), m.end(), LABEL_KS, 0.96))
+    return spans
 
 def regex_find_spans(text: str) -> List[RegexSpan]:
-    """Run all regex-based detectors and return spans."""
     spans: List[RegexSpan] = []
     spans.extend(find_orgs(text))
     spans.extend(find_roles(text))
     spans.extend(find_subjects(text))
+    spans.extend(find_emails(text))
+    spans.extend(find_urls(text))
+    spans.extend(find_inn(text))
+    spans.extend(find_ogrn(text))
+    spans.extend(find_kpp(text))
+    spans.extend(find_bik(text))
+    spans.extend(find_rs(text))
+    spans.extend(find_ks(text))    
     return spans
