@@ -14,16 +14,15 @@ Env vars:
 - REDACTOR_NATASHA_FULL: "1"/"true"/"yes" to enable full NER (default: off)
 - REDACTOR_NATASHA_LOG_LEVEL: Python logging level name (e.g. "INFO", "DEBUG")
 """
-
-from dataclasses import dataclass
-from typing import List, Optional, Tuple
-import logging
 import os
-from functools import lru_cache
+import re
+import logging
+from dataclasses import dataclass
+from typing      import List, Optional, Tuple
+from functools   import lru_cache
+from pathlib     import Path
 
 # ---------- Logging ----------
-_LOG_LEVEL = os.getenv("REDACTOR_NATASHA_LOG_LEVEL", "WARNING").upper()
-logging.basicConfig(level=getattr(logging, _LOG_LEVEL, logging.WARNING))
 log = logging.getLogger(__name__)
 
 # ---------- Optional Natasha imports ----------
@@ -35,6 +34,7 @@ try:
         NewsEmbedding,
         NamesExtractor,
         Segmenter,
+        AddrExtractor,
     )
 except Exception as e:
     log.info("Natasha import failed or partially unavailable: %s", e)
@@ -64,6 +64,17 @@ except Exception:
 
 from razdel import tokenize
 
+ADDR_HINTS = r"(ул|улица|шоссе|ш\.|просп|пр-т|пер|переул|дом|д\.|кв|ком|к.|корп|г\.|город|респ|обл|район|р-он)"
+
+@lru_cache(maxsize=100_000)
+def _lemma(token: str) -> str:
+    token = token.strip().lower()
+    if not _morph or not token:
+        return token
+    if not any(ch.isalpha() for ch in token):
+        return token
+    return _morph.parse(token)[0].normal_form
+
 def _build_stop_lemmas() -> set[str]:
     base: set[str] = set()
     if get_stop_words:
@@ -77,24 +88,24 @@ def _build_stop_lemmas() -> set[str]:
         except Exception:
             pass
     # доменные леммы
-    domain = {
-        "заказчик","исполнитель","подрядчик","поставщик","покупатель","клиент","контрагент","сторона","стороны",
-        "субподрядчик","субисполнитель","предмет","договор","договорной","договорные","условие","условия","акт","счет","пункт","раздел",
-        "глава","статья","далее","настоящий","согласно","основание"
-    }
-    base |= domain
-    return {w.strip().lower() for w in base if w}
+    domain_path = Path(__file__).resolve().parent.parent / "config" / "domain.txt"
+    domain_words: set[str] = set()
+    try:
+        if domain_path.exists():
+            for line in domain_path.read_text(encoding="utf-8").splitlines():
+                w = line.strip().lower()
+                if w:
+                    # лемматизируем wpis, чтобы сопоставлялось с леммами текста
+                    domain_words.add(w)
+    except Exception as e:
+        log.warning("Failed to load domain.txt: %s", e)
+    
+    base |= domain_words
+    # в конце возвращаем именно леммы в нижнем регистре
+    return { _lemma(w) for w in base if w }
 
 STOP_LEMMAS: set[str] = _build_stop_lemmas()
-
-@lru_cache(maxsize=100_000)
-def _lemma(token: str) -> str:
-    token = token.strip().lower()
-    if not _morph or not token:
-        return token
-    if not any(ch.isalpha() for ch in token):
-        return token
-    return _morph.parse(token)[0].normal_form
+print("------------------------------------------------", STOP_LEMMAS)
 
 def _token_lemmas(text: str) -> list[str]:
     lems: list[str] = []
@@ -147,10 +158,11 @@ def _overlaps(a: Tuple[int, int], b: Tuple[int, int], iou_thr: float = 0.5) -> b
 # ---------- Main class ----------
 class NatashaNER:
     def __init__(self) -> None:
-        self._emb: Optional[object] = None
-        self._ner: Optional[object] = None
-        self._names: Optional[object] = None
+        self._emb      : Optional[object] = None
+        self._ner      : Optional[object] = None
+        self._names    : Optional[object] = None
         self._segmenter: Optional[object] = None
+        self._addr     : Optional[object] = None
 
     def _ensure_full_models(self) -> None:
         if any(x is None for x in (Doc, NewsNERTagger, NewsEmbedding, Segmenter)):
@@ -177,6 +189,17 @@ class NatashaNER:
                 log.warning("Failed to init NamesExtractor: %s", e)
                 self._names = None
 
+    def _ensure_addr(self) -> None:
+        """Lazily initialize Natasha AddrExtractor."""
+        try:
+            if self._addr is None:
+                morph = MorphVocab()
+                self._addr = AddrExtractor(morph)
+                log.debug("AddrExtractor initialized.")
+        except Exception as e:
+            log.warning("Failed to init AddrExtractor: %s", e)
+            self._addr = None
+
     def analyze(self, text: str) -> List[NatashaSpan]:
         spans: List[NatashaSpan] = []
 
@@ -193,12 +216,13 @@ class NatashaNER:
                 doc.tag_ner(self._ner)
                 for span in doc.spans:
                     if span.type in {"PER","ORG"}:
-                        if span.type == "PER":
-                            # если все леммы фрагмента стоповые или фрагмент короткий служебный — пропускаем
-                            frag = text[span.start:span.stop]
-                            if _is_stop_fragment_by_lemma(frag):
-                                log.debug(f"Skipping stop fragment: {frag}")
-                                continue                        
+                        # if span.type == "PER":
+                        # если все леммы фрагмента стоповые или фрагмент короткий служебный — пропускаем
+                        frag = text[span.start:span.stop]
+                        # log.info(f"SPAN: {frag} LEMMA: {_lemma(frag)} STOP { _is_stop_fragment_by_lemma(frag) }")
+                        if _is_stop_fragment_by_lemma(frag):
+                            log.debug(f"Skipping stop fragment: {frag}")
+                            continue                        
                         label = "PERSON" if span.type == "PER" else "ORG"
                         score = float(getattr(span, "score", 0.8))
                         spans.append(NatashaSpan(span.start, span.stop, label, score))
@@ -232,7 +256,7 @@ class NatashaNER:
 
                     # Базовая структурная проверка
                     frag_stripped = frag.strip()
-                    if len(frag_stripped) < 3:
+                    if len(frag_stripped) < 4:
                         continue
                     if not frag_stripped[0].isalpha():
                         continue
@@ -252,6 +276,35 @@ class NatashaNER:
                 log.debug("Fallback NamesExtractor added %d PERSON spans.", added)
             except Exception as e:
                 log.warning("NamesExtractor failed: %s", e)
+
+        self._ensure_addr()
+        if self._addr:
+            try:
+                matches = self._addr(text)
+                added = 0
+
+                for m in matches:
+                    s = getattr(m, "start", None)
+                    e = getattr(m, "stop",  None)
+                    if s is None or e is None:
+                        span = getattr(m, "span", None)
+                        if span and isinstance(span, (tuple, list)) and len(span)==2:
+                            s, e = span
+                        else:
+                            continue
+
+                    frag = text[s:e]
+                    # Лемма-фильтр
+                    if _is_stop_fragment_by_lemma(frag) or \
+                        not re.search(ADDR_HINTS, frag, flags=re.IGNORECASE):
+                        continue
+
+                    spans.append(NatashaSpan(s, e, "ADDRESS", 0.80))
+                    added += 1
+
+                log.debug("AddrExtractor added %d ADDRESS spans.", added)
+            except Exception as e:
+                log.warning("AddrExtractor failed: %s", e)
 
         return spans
 
