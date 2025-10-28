@@ -295,8 +295,8 @@ class NatashaNER:
 
                     frag = text[s:e]
                     # Лемма-фильтр
-                    if _is_stop_fragment_by_lemma(frag) or \
-                        not re.search(ADDR_HINTS, frag, flags=re.IGNORECASE):
+                    if _is_stop_fragment_by_lemma(frag):
+                        #or not re.search(ADDR_HINTS, frag, flags=re.IGNORECASE):
                         continue
 
                     spans.append(NatashaSpan(s, e, "ADDRESS", 0.80))

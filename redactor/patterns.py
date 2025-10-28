@@ -47,6 +47,7 @@ LABEL_KPP     = "KPP"
 LABEL_BIK     = "BIK"
 LABEL_RS      = "RS"
 LABEL_KS      = "KS"
+LABEL_ADDR    = "ADDR"
 
 log = logging.getLogger(__name__)
 
@@ -63,6 +64,9 @@ class FlagsModel(BaseModel):
     bik_pattern: List[str] = []
     rs_pattern: List[str] = []
     ks_pattern: List[str] = []
+    addr_window_pattern: List[str] = []
+    addr_street_pattern: List[str] = []
+    addr_house_pattern: List[str] = []
 
 class RegexModel(BaseModel):
     org_pattern:  Optional[str] = None
@@ -77,6 +81,9 @@ class RegexModel(BaseModel):
     bik_pattern: Optional[str] = None
     rs_pattern: Optional[str] = None
     ks_pattern: Optional[str] = None
+    addr_window_pattern: Optional[str] = None
+    addr_street_pattern: Optional[str] = None
+    addr_house_pattern: Optional[str] = None
 
 class PatternsConfig(BaseModel):
     version: int = 1
@@ -110,6 +117,9 @@ class PatternBundle:
     bik_pattern:            Optional[re.Pattern] = None
     rs_pattern:             Optional[re.Pattern] = None
     ks_pattern:             Optional[re.Pattern] = None
+    addr_window_pattern: Optional[re.Pattern] = None
+    addr_street_pattern: Optional[re.Pattern] = None
+    addr_house_pattern: Optional[re.Pattern] = None
 
 _CACHE: Optional[PatternBundle] = None
 _CACHE_PATH: Optional[str] = None
@@ -237,7 +247,11 @@ def _compile(cfg: PatternsConfig) -> PatternBundle:
         kpp   = re.compile(cfg.regex.kpp_pattern,            _flags_to_re(cfg.flags.kpp_pattern))
         bik   = re.compile(cfg.regex.bik_pattern,            _flags_to_re(cfg.flags.bik_pattern))
         rs    = re.compile(cfg.regex.rs_pattern,             _flags_to_re(cfg.flags.rs_pattern))
-        ks    = re.compile(cfg.regex.ks_pattern,             _flags_to_re(cfg.flags.ks_pattern))        
+        ks    = re.compile(cfg.regex.ks_pattern,             _flags_to_re(cfg.flags.ks_pattern))
+        addr_window = re.compile(cfg.regex.addr_window_pattern, _flags_to_re(cfg.flags.addr_window_pattern))
+        addr_street = re.compile(cfg.regex.addr_street_pattern, _flags_to_re(cfg.flags.addr_street_pattern))
+        addr_house = re.compile(cfg.regex.addr_house_pattern, _flags_to_re(cfg.flags.addr_house_pattern))
+
     except re.error as e:
         # Identify which pattern failed by naive check
         # Re-compile each to isolate
@@ -254,6 +268,9 @@ def _compile(cfg: PatternsConfig) -> PatternBundle:
             ("bik_pattern", cfg.regex.bik_pattern, cfg.flags.bik_pattern),
             ("rs_pattern", cfg.regex.rs_pattern, cfg.flags.rs_pattern),
             ("ks_pattern", cfg.regex.ks_pattern, cfg.flags.ks_pattern),
+            ("addr_window_pattern", cfg.regex.addr_window_pattern, cfg.flags.addr_window_pattern),
+            ("addr_street_pattern", cfg.regex.addr_street_pattern, cfg.flags.addr_street_pattern),
+            ("addr_house_pattern", cfg.regex.addr_house_pattern, cfg.flags.addr_house_pattern),            
         ]:
             try:
                 re.compile(pat, _flags_to_re(fl))
@@ -264,7 +281,7 @@ def _compile(cfg: PatternsConfig) -> PatternBundle:
         raise
     subject_keywords = tuple(cfg.keywords.get("subject_keywords", []))
     return PatternBundle(org, role, inf, subj, subject_keywords,
-                         email, url, inn, ogrn, kpp, bik, rs, ks)
+                         email, url, inn, ogrn, kpp, bik, rs, ks, addr_window, addr_street, addr_house)
 
 
 def load_patterns(config_path: Optional[str] = None) -> PatternBundle:
@@ -507,6 +524,40 @@ def find_ks(text: str) -> List[RegexSpan]:
                 spans.append(RegexSpan(m.start(), m.end(), LABEL_KS, 0.96))
     return spans
 
+def find_addresses_strict(text: str) -> List[RegexSpan]:
+    """
+    Берём только те «окна», где в пределах 40–120 символов есть >=2 адресных маркера,
+    и внутри встречается хотя бы улица/улицетип ИЛИ дом/корп./стр. с номером.
+    Возвращаем цельный фрагмент окна (слегка расширенный вправо до ближайшего ';' или '.').
+    """
+    spans: List[RegexSpan] = []
+    pats = get_patterns()  # существует в модуле
+    win_rx   = pats.addr_window_pattern
+    street_rx= pats.addr_street_pattern
+    house_rx = pats.addr_house_pattern
+    if not (win_rx and street_rx and house_rx):
+        return spans  # конфиг не подключён — тихо выходим
+
+    tnorm = text
+
+    for m in win_rx.finditer(tnorm):
+        frag = tnorm[m.start():m.end()]
+        if not (street_rx.search(frag) or house_rx.search(frag)):
+            continue
+        # чуть расширим границы справа, чтобы не обрубать номер
+        left  = max(0, m.start() - 40)
+        right = min(len(tnorm), m.end() + 40)
+        cut = re.search(r"[.;](?:\s|$)", tnorm[m.end():right])
+        if cut:
+            right = m.end() + cut.start() + 1
+        raw_slice = tnorm[left:right]
+        # приблизительное сопоставление с оригиналом
+        raw_pos = text.find(raw_slice)
+        if raw_pos == -1:
+            raw_pos = left
+        spans.append(RegexSpan(raw_pos, raw_pos + len(raw_slice), LABEL_ADDR, 0.93))
+    return spans
+
 def regex_find_spans(text: str) -> List[RegexSpan]:
     spans: List[RegexSpan] = []
     spans.extend(find_orgs(text))
@@ -519,5 +570,6 @@ def regex_find_spans(text: str) -> List[RegexSpan]:
     spans.extend(find_kpp(text))
     spans.extend(find_bik(text))
     spans.extend(find_rs(text))
-    spans.extend(find_ks(text))    
+    spans.extend(find_ks(text)) 
+    spans.extend(find_addresses_strict(text))  
     return spans
