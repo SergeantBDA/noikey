@@ -15,7 +15,7 @@ regex:
       \s*(?:№|N(?:o)?\.?)?\s*(?P<num>[A-Za-zА-Яа-я0-9\-/.]+))?(?:\s*от\s*(?P<date>\d{1,2}[./]\d{1,2}[./]\d{2,4})
     )?
   in_face_pattern: "в\\s+лице\\s+[^,\\n]+?"
-  subject_header_pattern: "(?im)^\\s*(ПРЕДМЕТ\\s+ДОГОВОРА|Предмет\\s+договора)\\s*$"
+  subject_header_pattern: "(?!)"
   email_pattern: >-
     [A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}
   url_pattern: >-
@@ -70,8 +70,4 @@ flags:
   addr_house_pattern: ["I","U","X"]
 keywords:
   subject_keywords:
-    - "обязуется"
-    - "предметом является"
-    - "оказать"
-    - "выполнить"
-    - "поставить"
+    - "(?!)"

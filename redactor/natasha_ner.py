@@ -105,7 +105,6 @@ def _build_stop_lemmas() -> set[str]:
     return { _lemma(w) for w in base if w }
 
 STOP_LEMMAS: set[str] = _build_stop_lemmas()
-print("------------------------------------------------", STOP_LEMMAS)
 
 def _token_lemmas(text: str) -> list[str]:
     lems: list[str] = []
@@ -203,7 +202,7 @@ class NatashaNER:
     def analyze(self, text: str) -> List[NatashaSpan]:
         spans: List[NatashaSpan] = []
 
-        use_full = os.getenv("REDACTOR_NATASHA_FULL", "0").lower() in {"1","true","yes"}
+        use_full = 1 #os.getenv("REDACTOR_NATASHA_FULL", "0").lower() in {"1","true","yes"}
         if use_full:
             self._ensure_full_models()
         self._ensure_names()

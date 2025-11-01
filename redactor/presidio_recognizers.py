@@ -245,12 +245,8 @@ def analyze_text(analyzer: Optional[Any], text: str, min_score: float = 0.5) -> 
     if analyzer is None:
         return []
     try:
-        results = analyzer.analyze(text=text, language="ru")
+        results = analyzer.analyze(text=text, language=None)
     except Exception:
-        # Fallback: try without language restrictions if registry complains
-        try:
-            results = analyzer.analyze(text=text, language=None)
-        except Exception:
             return []
     spans: List[dict] = []
     for r in results:

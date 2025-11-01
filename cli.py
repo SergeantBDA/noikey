@@ -10,7 +10,7 @@ from typing import Iterable, List, Optional, Tuple
 
 from redactor.pipeline import Pipeline, PipelineOptions, MaskStyle
 from redactor.patterns import reload_patterns
-from redactor.io_utils import discover_files, read_any, mirror_output_path, write_text, append_jsonl
+from redactor.io_utils import discover_files, read_any, read_text_file, mirror_output_path, write_text, append_jsonl
 
 
 def parse_args() -> argparse.Namespace:
@@ -39,7 +39,8 @@ def setup_logging(level: str) -> None:
 
 def process_one(pipeline_opts: PipelineOptions, input_root: Path, output_root: Path, path: Path, dry: bool, enable_office: bool) -> dict:
     pipe = Pipeline(pipeline_opts)
-    text = read_any(path, enable_office=enable_office)
+    #text = read_any(path, enable_office=enable_office)
+    text = read_text_file(path)
     if text is None:
         return {"file": str(path), "status": "skipped", "reason": "unreadable or disabled"}
     redacted, logs = pipe.process_text(text)

@@ -1,0 +1,1 @@
+python cli.py --input .\tests\documents\ --mask-style hash --keep-length --min-score 0.79 --log-level DEBUG --patterns .\config\patterns.yaml
